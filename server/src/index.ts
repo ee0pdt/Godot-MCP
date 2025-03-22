@@ -26,6 +26,32 @@ import {
   currentScriptResource 
 } from './resources/editor_resources.js';
 
+// Add global error handlers to prevent crashes
+process.on('unhandledRejection', (reason, promise) => {
+  // Check if this is a connection closed error from the MCP protocol
+  const err = reason as any;
+  if (err?.code === -32000 && err?.message?.includes('Connection closed')) {
+    // connection closed
+    return;
+  } else if (err?.context?.error?.code === -32001 && err?.code == 'ERR_UNHANDLED_ERROR') {
+    // request timeout
+    return;
+  }
+  console.error('[MCP Server] Error details:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  // Check if this is a connection closed error from the MCP protocol
+  const err = error as any; // Cast to any to access non-standard properties
+  if (err && err.code === 'ERR_UNHANDLED_ERROR') {
+    const code = err.context?.error?.code;
+    if (code === -32000 || code === -32001) { // connection closed or request timeout
+        return;
+    }
+  }
+  console.error('[MCP Server] Exception details:', error);
+});
+
 /**
  * Main entry point for the Godot MCP server
  */

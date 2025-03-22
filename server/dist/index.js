@@ -47,12 +47,40 @@ import { FastMCP } from 'fastmcp';
 import { nodeTools } from './tools/node_tools.js';
 import { scriptTools } from './tools/script_tools.js';
 import { sceneTools } from './tools/scene_tools.js';
+import { editorTools } from './tools/editor_tools.js';
 import { getGodotConnection } from './utils/godot_connection.js';
 // Import resources
 import { sceneListResource, sceneStructureResource } from './resources/scene_resources.js';
 import { scriptResource, scriptListResource, scriptMetadataResource } from './resources/script_resources.js';
 import { projectStructureResource, projectSettingsResource, projectResourcesResource } from './resources/project_resources.js';
 import { editorStateResource, selectedNodeResource, currentScriptResource } from './resources/editor_resources.js';
+// Add global error handlers to prevent crashes
+process.on('unhandledRejection', function (reason, promise) {
+    var _a, _b, _c;
+    // Check if this is a connection closed error from the MCP protocol
+    var err = reason;
+    if ((err === null || err === void 0 ? void 0 : err.code) === -32000 && ((_a = err === null || err === void 0 ? void 0 : err.message) === null || _a === void 0 ? void 0 : _a.includes('Connection closed'))) {
+        // connection closed
+        return;
+    }
+    else if (((_c = (_b = err === null || err === void 0 ? void 0 : err.context) === null || _b === void 0 ? void 0 : _b.error) === null || _c === void 0 ? void 0 : _c.code) === -32001 && (err === null || err === void 0 ? void 0 : err.code) == 'ERR_UNHANDLED_ERROR') {
+        // request timeout
+        return;
+    }
+    console.error('[MCP Server] Error details:', reason);
+});
+process.on('uncaughtException', function (error) {
+    var _a, _b;
+    // Check if this is a connection closed error from the MCP protocol
+    var err = error; // Cast to any to access non-standard properties
+    if (err && err.code === 'ERR_UNHANDLED_ERROR') {
+        var code = (_b = (_a = err.context) === null || _a === void 0 ? void 0 : _a.error) === null || _b === void 0 ? void 0 : _b.code;
+        if (code === -32000 || code === -32001) { // connection closed or request timeout
+            return;
+        }
+    }
+    console.error('[MCP Server] Exception details:', error);
+});
 /**
  * Main entry point for the Godot MCP server
  */
@@ -68,7 +96,7 @@ function main() {
                         version: '1.0.0',
                     });
                     // Register all tools
-                    __spreadArray(__spreadArray(__spreadArray([], nodeTools, true), scriptTools, true), sceneTools, true).forEach(function (tool) {
+                    __spreadArray(__spreadArray(__spreadArray(__spreadArray([], nodeTools, true), scriptTools, true), sceneTools, true), editorTools, true).forEach(function (tool) {
                         server.addTool(tool);
                     });
                     // Register all resources
